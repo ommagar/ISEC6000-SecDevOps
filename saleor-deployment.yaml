@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor
+  template:
+    metadata:
+      labels:
+        app: saleor
+    spec:
+      containers:
+      - name: saleor
+        image: gcr.io/isec6000-434507/saleor:latest
+        ports:
+        - containerPort: 8000 # Saleor API port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleor-service
+spec:
+  selector:
+    app: saleor
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
+

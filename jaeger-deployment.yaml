@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+      - name: jaeger
+        image: gcr.io/isec6000-434507/jaeger:latest
+        ports:
+        - containerPort: 16686 # Example Jaeger UI port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-service
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 16686
+  type: LoadBalancer
+

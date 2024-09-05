@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor-dashboard
+  template:
+    metadata:
+      labels:
+        app: saleor-dashboard
+    spec:
+      containers:
+      - name: saleor-dashboard
+        image: gcr.io/isec6000-434507/saleor-dashboard:latest
+        ports:
+        - containerPort: 9002 # Saleor dashboard port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleor-dashboard-service
+spec:
+  selector:
+    app: saleor-dashboard
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9002
+  type: LoadBalancer
+

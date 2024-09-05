@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailpit
+  template:
+    metadata:
+      labels:
+        app: mailpit
+    spec:
+      containers:
+      - name: mailpit
+        image: gcr.io/isec6000-434507/mailpit:latest
+        ports:
+        - containerPort: 8025 # Mailpit UI port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit-service
+spec:
+  selector:
+    app: mailpit
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8025
+  type: LoadBalancer
+
