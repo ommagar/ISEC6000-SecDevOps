@@ -2,40 +2,40 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mailpit
+  name: redis
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mailpit
+      app: redis
   template:
     metadata:
       labels:
-        app: mailpit
+        app: redis
     spec:
       containers:
-      - name: mailpit
-        image: gcr.io/isec6000-434507/mailpit:latest
+      - name: redis
+        image: gcr.io/isec6000-434507/redis:latest
         ports:
-        - containerPort: 8025
+        - containerPort: 6379
         resources:
           limits:
             cpu: "0.5"
-            memory: "64Mi"
+            memory: "128Mi"
           requests:
             cpu: "0.25"
-            memory: "32Mi"
+            memory: "64Mi"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: mailpit-service
+  name: redis-service
 spec:
   selector:
-    app: mailpit
+    app: redis
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 8025
-  type: LoadBalancer
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
 

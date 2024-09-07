@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,7 +17,17 @@ spec:
       - name: saleor-dashboard
         image: gcr.io/isec6000-434507/saleor-dashboard:latest
         ports:
-        - containerPort: 9002 # Saleor dashboard port
+        - containerPort: 80
+        env:
+        - name: API_URL
+          value: "http://saleor-api-service:80"  # Change as needed based on your setup
+        resources:
+          limits:
+            cpu: "1"
+            memory: "256Mi"
+          requests:
+            cpu: "0.5"
+            memory: "128Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -28,6 +39,6 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 9002
+      targetPort: 80
   type: LoadBalancer
 

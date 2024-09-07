@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,7 +17,20 @@ spec:
       - name: jaeger
         image: gcr.io/isec6000-434507/jaeger:latest
         ports:
-        - containerPort: 16686 # Example Jaeger UI port
+        - containerPort: 16686  # Jaeger UI port
+        - containerPort: 5775   # Jaeger Agent port (UDP)
+        - containerPort: 6831   # Jaeger Agent port (UDP)
+        - containerPort: 6832   # Jaeger Agent port (UDP)
+        - containerPort: 5778   # Jaeger HTTP port
+        - containerPort: 14268  # Jaeger Collector HTTP port
+        - containerPort: 9411   # Zipkin compatible port
+        resources:
+          limits:
+            cpu: "1"
+            memory: "512Mi"
+          requests:
+            cpu: "0.5"
+            memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -27,7 +41,32 @@ spec:
     app: jaeger
   ports:
     - protocol: TCP
+      name: ui-port
       port: 80
-      targetPort: 16686
+      targetPort: 16686  # Expose Jaeger UI on port 80
+    - protocol: UDP
+      name: agent-port1
+      port: 5775
+      targetPort: 5775
+    - protocol: UDP
+      name: agent-port2
+      port: 6831
+      targetPort: 6831
+    - protocol: UDP
+      name: agent-port3
+      port: 6832
+      targetPort: 6832
+    - protocol: TCP
+      name: http-port
+      port: 5778
+      targetPort: 5778
+    - protocol: TCP
+      name: collector-port
+      port: 14268
+      targetPort: 14268
+    - protocol: TCP
+      name: zipkin-port
+      port: 9411
+      targetPort: 9411
   type: LoadBalancer
 
