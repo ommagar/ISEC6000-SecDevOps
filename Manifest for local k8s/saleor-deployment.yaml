@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: saleor-api
-        image: gcr.io/isec6000-434507/saleor:latest
+        image: ghcr.io/saleor/saleor:3.20
         ports:
         - containerPort: 8000
         env:
@@ -26,9 +26,8 @@ spec:
         - name: JAEGER_AGENT_HOST
           value: "jaeger"
         - name: DASHBOARD_URL
-          value: "http://34.66.61.76/"
+          value: "http://saleor-dashboard-service/"
         - name: ALLOWED_HOSTS
-          #value: "localhost,api"
           value: "localhost,api,104.197.234.205"
         volumeMounts:
         - name: saleor-media
@@ -55,5 +54,5 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8000
-  type: LoadBalancer
+  type: NodePort
 

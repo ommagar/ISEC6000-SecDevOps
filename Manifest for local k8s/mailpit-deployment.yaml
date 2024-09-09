@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailpit
+  template:
+    metadata:
+      labels:
+        app: mailpit
+    spec:
+      containers:
+      - name: mailpit
+        image: axllent/mailpit:latest
+        ports:
+        - containerPort: 8025
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "64Mi"
+          requests:
+            cpu: "0.25"
+            memory: "32Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit-service
+spec:
+  selector:
+    app: mailpit
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8025
+  type: NodePort
+

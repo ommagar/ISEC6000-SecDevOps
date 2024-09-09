@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: saleor-worker
-        image: gcr.io/isec6000-434507/saleor:latest
+        image: ghcr.io/saleor/saleor:3.20
         command: ["celery", "-A", "saleor", "--app=saleor.celeryconf:app", "worker", "--loglevel=info", "-B"]
         env:
         - name: DATABASE_URL

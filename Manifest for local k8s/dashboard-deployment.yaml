@@ -15,12 +15,12 @@ spec:
     spec:
       containers:
       - name: saleor-dashboard
-        image: gcr.io/isec6000-434507/saleor-dashboard:latest
+        image: ghcr.io/saleor/saleor-dashboard:latest
         ports:
         - containerPort: 80
         env:
         - name: API_URL
-          value: "http://saleor-api-service"  # Change as needed based on your setup
+          value: "http://saleor-api-service:80"  # Change as needed based on your setup
         resources:
           limits:
             cpu: "1"
@@ -40,5 +40,5 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-  type: LoadBalancer
+  type: NodePort
 
