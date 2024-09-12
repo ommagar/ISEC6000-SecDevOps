@@ -1,0 +1,418 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor-api
+  template:
+    metadata:
+      labels:
+        app: saleor-api
+    spec:
+      containers:
+      - name: saleor-api
+        image: gcr.io/isec6000-434507/saleor:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgres://saleor:saleor@postgres-service:5432/saleor"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        - name: JAEGER_AGENT_HOST
+          value: "jaeger"
+        - name: DASHBOARD_URL
+          value: "http://34.66.61.76/"
+        - name: ALLOWED_HOSTS
+          value: "localhost,api,104.197.234.205"
+        volumeMounts:
+        - name: saleor-media
+          mountPath: /app/media
+        resources:
+          limits:
+            cpu: "2"
+            memory: "512Mi"
+          requests:
+            cpu: "1"
+            memory: "400Mi"
+      volumes:
+      - name: saleor-media
+        persistentVolumeClaim:
+          claimName: saleor-media-pvc  # Update this line
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleor-api-service
+spec:
+  selector:
+    app: saleor-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor-dashboard
+  template:
+    metadata:
+      labels:
+        app: saleor-dashboard
+    spec:
+      containers:
+      - name: saleor-dashboard
+        image: gcr.io/isec6000-434507/saleor-dashboard:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: API_URL
+          value: "http://104.197.234.205"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "100Mi"
+          requests:
+            cpu: "0.5"
+            memory: "50Mi"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      initContainers:
+      - name: cleanup
+        image: busybox
+        command: ["sh", "-c", "rm -rf /var/lib/postgresql/data/*"]
+        volumeMounts:
+        - name: saleor-db
+          mountPath: /var/lib/postgresql/data
+      containers:
+      - name: postgres
+        image: gcr.io/isec6000-434507/postgres:latest
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: "saleor"
+        - name: POSTGRES_PASSWORD
+          value: "saleor"
+        volumeMounts:
+        - name: saleor-db
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "1"
+            memory: "256Mi"
+          requests:
+            cpu: "0.5"
+            memory: "128Mi"
+      volumes:
+      - name: saleor-db
+        persistentVolumeClaim:
+          claimName: saleor-db-pvc
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: gcr.io/isec6000-434507/redis:latest
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: saleor-redis
+          mountPath: /data  # Update this line
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "128Mi"
+          requests:
+            cpu: "0.25"
+            memory: "64Mi"
+      volumes:
+      - name: saleor-redis
+        persistentVolumeClaim:
+          claimName: saleor-redis-pvc  # Update this line
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+      - name: jaeger
+        image: gcr.io/isec6000-434507/jaeger:latest
+        ports:
+        - containerPort: 16686  # Jaeger UI port
+        - containerPort: 5775   # Jaeger Agent port (UDP)
+        - containerPort: 6831   # Jaeger Agent port (UDP)
+        - containerPort: 6832   # Jaeger Agent port (UDP)
+        - containerPort: 5778   # Jaeger HTTP port
+        - containerPort: 14268  # Jaeger Collector HTTP port
+        - containerPort: 9411   # Zipkin compatible port
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "128Mi"
+          requests:
+            cpu: "0.25"
+            memory: "64Mi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-service
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - protocol: TCP
+      name: ui-port
+      port: 80
+      targetPort: 16686  # Expose Jaeger UI on port 80
+    - protocol: UDP
+      name: agent-port1
+      port: 5775
+      targetPort: 5775
+    - protocol: UDP
+      name: agent-port2
+      port: 6831
+      targetPort: 6831
+    - protocol: UDP
+      name: agent-port3
+      port: 6832
+      targetPort: 6832
+    - protocol: TCP
+      name: http-port
+      port: 5778
+      targetPort: 5778
+    - protocol: TCP
+      name: collector-port
+      port: 14268
+      targetPort: 14268
+    - protocol: TCP
+      name: zipkin-port
+      port: 9411
+      targetPort: 9411
+  type: LoadBalancer
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailpit
+  template:
+    metadata:
+      labels:
+        app: mailpit
+    spec:
+      containers:
+      - name: mailpit
+        image: gcr.io/isec6000-434507/mailpit:latest
+        ports:
+        - containerPort: 8025
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "64Mi"
+          requests:
+            cpu: "0.25"
+            memory: "32Mi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit-service
+spec:
+  selector:
+    app: mailpit
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8025
+  type: LoadBalancer
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-media-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce  # Updated for shared access
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor-worker
+  template:
+    metadata:
+      labels:
+        app: saleor-worker
+    spec:
+      containers:
+      - name: saleor-worker
+        image: gcr.io/isec6000-434507/saleor:latest
+        command: ["sh", "-c", "celery -A saleor worker --loglevel=info"]
+        env:
+        - name: DATABASE_URL
+          value: "postgres://saleor:saleor@postgres-service:5432/saleor"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        volumeMounts:
+        - name: saleor-media
+          mountPath: /app/media
+        resources:
+          limits:
+            cpu: "1"
+            memory: "256Mi"
+          requests:
+            cpu: "0.5"
+            memory: "128Mi"
+      volumes:
+      - name: saleor-media
+        persistentVolumeClaim:
+          claimName: saleor-media-pvc  # Update this line
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleor-worker-service
+spec:
+  selector:
+    app: saleor-worker
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP

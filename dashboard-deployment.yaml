@@ -20,7 +20,7 @@ spec:
         - containerPort: 80
         env:
         - name: API_URL
-          value: "http://saleor-api-service"  # Change as needed based on your setup
+          value: "http://104.197.234.205"  # Change as needed based on your setup
         resources:
           limits:
             cpu: "1"

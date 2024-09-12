@@ -28,7 +28,6 @@ spec:
         - name: DASHBOARD_URL
           value: "http://34.66.61.76/"
         - name: ALLOWED_HOSTS
-          #value: "localhost,api"
           value: "localhost,api,104.197.234.205"
         volumeMounts:
         - name: saleor-media
