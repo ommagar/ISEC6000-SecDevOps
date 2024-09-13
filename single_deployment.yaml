@@ -27,7 +27,7 @@ spec:
         - name: DASHBOARD_URL
           value: "http://34.66.61.76/"
         - name: ALLOWED_HOSTS
-          value: "localhost,api,104.197.234.205"
+          value: "localhost,api,104.154.85.40"
         volumeMounts:
         - name: saleor-media
           mountPath: /app/media
@@ -40,8 +40,9 @@ spec:
             memory: "400Mi"
       volumes:
       - name: saleor-media
-        persistentVolumeClaim:
-          claimName: saleor-media-pvc  # Update this line
+        emptyDir: {}  # Replaced PersistentVolumeClaim with emptyDir
+        #persistentVolumeClaim:
+         # claimName: saleor-media-pvc  # Update this line
 
 ---
 
@@ -81,7 +82,7 @@ spec:
         - containerPort: 80
         env:
         - name: API_URL
-          value: "http://104.197.234.205"
+          value: "http://saleor-api-service:80"
         resources:
           limits:
             cpu: "1"
@@ -325,45 +326,6 @@ spec:
 
 ---
 
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: saleor-media-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce  # Updated for shared access
-  resources:
-    requests:
-      storage: 5Gi
-
----
-
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: saleor-db-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-
----
-
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: saleor-redis-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-
----
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -399,8 +361,8 @@ spec:
             memory: "128Mi"
       volumes:
       - name: saleor-media
-        persistentVolumeClaim:
-          claimName: saleor-media-pvc  # Update this line
+        emptyDir: {}  # Replaced PersistentVolumeClaim with emptyDir
+        #  claimName: saleor-media-pvc  # Update this line
 
 ---
 
@@ -416,3 +378,57 @@ spec:
       port: 8000
       targetPort: 8000
   type: ClusterIP
+  
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: saleor-media-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /mnt/shared-storage  # A directory on the node's filesystem
+  persistentVolumeReclaimPolicy: Retain
+      
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-media-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
