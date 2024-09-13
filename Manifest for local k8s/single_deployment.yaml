@@ -1,0 +1,444 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor-api
+  template:
+    metadata:
+      labels:
+        app: saleor-api
+    spec:
+      containers:
+      - name: saleor-api
+        image: ghcr.io/saleor/saleor:3.20
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgres://saleor:saleor@postgres-service:5432/saleor"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        - name: JAEGER_AGENT_HOST
+          value: "jaeger"
+        - name: DASHBOARD_URL
+          value: "http://34.66.61.76/"
+        - name: ALLOWED_HOSTS
+          value: "localhost,api,104.197.234.205"
+        volumeMounts:
+        - name: saleor-media
+          mountPath: /app/media
+        resources:
+          limits:
+            cpu: "2"
+            memory: "512Mi"
+          requests:
+            cpu: "1"
+            memory: "400Mi"
+      volumes:
+      - name: saleor-media
+        persistentVolumeClaim:
+          claimName: saleor-media-pvc
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleor-api-service
+spec:
+  selector:
+    app: saleor-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+      nodePort: 30001
+  type: NodePort
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor-dashboard
+  template:
+    metadata:
+      labels:
+        app: saleor-dashboard
+    spec:
+      containers:
+      - name: saleor-dashboard
+        image: ghcr.io/saleor/saleor-dashboard:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: API_URL
+          value: "http://104.197.234.205"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "100Mi"
+          requests:
+            cpu: "0.5"
+            memory: "50Mi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleor-dashboard-service
+spec:
+  selector:
+    app: saleor-dashboard
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30002
+  type: NodePort
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      initContainers:
+      - name: cleanup
+        image: busybox
+        command: ["sh", "-c", "rm -rf /var/lib/postgresql/data/*"]
+        volumeMounts:
+        - name: saleor-db
+          mountPath: /var/lib/postgresql/data
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: "saleor"
+        - name: POSTGRES_PASSWORD
+          value: "saleor"
+        volumeMounts:
+        - name: saleor-db
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            cpu: "1"
+            memory: "256Mi"
+          requests:
+            cpu: "0.5"
+            memory: "128Mi"
+      volumes:
+      - name: saleor-db
+        persistentVolumeClaim:
+          claimName: saleor-db-pvc
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.0-alpine
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: saleor-redis
+          mountPath: /data
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "128Mi"
+          requests:
+            cpu: "0.25"
+            memory: "64Mi"
+      volumes:
+      - name: saleor-redis
+        persistentVolumeClaim:
+          claimName: saleor-redis-pvc
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+      - name: jaeger
+        image: jaegertracing/all-in-one
+        ports:
+        - containerPort: 16686
+        - containerPort: 5775
+        - containerPort: 6831
+        - containerPort: 6832
+        - containerPort: 5778
+        - containerPort: 14268
+        - containerPort: 9411
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "128Mi"
+          requests:
+            cpu: "0.25"
+            memory: "64Mi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-service
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - protocol: TCP
+      name: ui-port
+      port: 80
+      targetPort: 16686
+      nodePort: 30003
+    - protocol: UDP
+      name: agent-port1
+      port: 5775
+      targetPort: 5775
+      nodePort: 30004
+    - protocol: UDP
+      name: agent-port2
+      port: 6831
+      targetPort: 6831
+      nodePort: 30005
+    - protocol: UDP
+      name: agent-port3
+      port: 6832
+      targetPort: 6832
+      nodePort: 30006
+    - protocol: TCP
+      name: http-port
+      port: 5778
+      targetPort: 5778
+      nodePort: 30007
+    - protocol: TCP
+      name: collector-port
+      port: 14268
+      targetPort: 14268
+      nodePort: 30008
+    - protocol: TCP
+      name: zipkin-port
+      port: 9411
+      targetPort: 9411
+      nodePort: 30009
+  type: NodePort
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailpit
+  template:
+    metadata:
+      labels:
+        app: mailpit
+    spec:
+      containers:
+      - name: mailpit
+        image: axllent/mailpit
+        ports:
+        - containerPort: 8025
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "64Mi"
+          requests:
+            cpu: "0.25"
+            memory: "32Mi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit-service
+spec:
+  selector:
+    app: mailpit
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8025
+      nodePort: 30010
+  type: NodePort
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleor-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saleor-worker
+  template:
+    metadata:
+      labels:
+        app: saleor-worker
+    spec:
+      containers:
+      - name: saleor-worker
+        image: ghcr.io/saleor/saleor:3.20
+        command: ["sh", "-c", "celery -A saleor worker --loglevel=info"]
+        env:
+        - name: DATABASE_URL
+          value: "postgres://saleor:saleor@postgres-service:5432/saleor"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        volumeMounts:
+        - name: saleor-media
+          mountPath: /app/media
+        resources:
+          limits:
+            cpu: "1"
+            memory: "256Mi"
+          requests:
+            cpu: "0.5"
+            memory: "128Mi"
+      volumes:
+      - name: saleor-media
+        persistentVolumeClaim:
+          claimName: saleor-media-pvc
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: saleor-media-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /mnt/shared-storage
+  persistentVolumeReclaimPolicy: Retain
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-media-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: saleor-redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
